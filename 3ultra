@@ -26,31 +26,36 @@ time.sleep(1)
 #  Function to read distance
 # ------------------------------
 def read_distance(trig_pin, echo_pin):
-    # Kirim trigger
+    # Pastikan trig LOW sebelum mulai
+    GPIO.output(trig_pin, False)
+    time.sleep(0.0002)
+
+    # Trigger 10us
     GPIO.output(trig_pin, True)
-    time.sleep(0.00001)  # 10 microseconds
+    time.sleep(0.00001)
     GPIO.output(trig_pin, False)
 
-    # Tunggu echo start
-    start_time = time.time()
-    timeout = start_time + 0.02  # 20 ms timeout
+    # Tunggu Echo HIGH
+    start = time.time()
+    timeout = start + 0.05  # 50ms
+    while GPIO.input(echo_pin) == 0:
+        start = time.time()
+        if start > timeout:
+            return -1  # timeout → error
 
-    while GPIO.input(echo_pin) == 0 and time.time() < timeout:
-        start_time = time.time()
-
-    # Tunggu echo end
-    end_time = time.time()
-    timeout = end_time + 0.02
-
-    while GPIO.input(echo_pin) == 1 and time.time() < timeout:
-        end_time = time.time()
+    # Tunggu Echo LOW
+    end = time.time()
+    timeout = end + 0.05
+    while GPIO.input(echo_pin) == 1:
+        end = time.time()
+        if end > timeout:
+            return -1
 
     # Durasi gelombang
-    duration = end_time - start_time
+    duration = end - start
 
-    # Hitung jarak (kecepatan suara: 34300 cm/s)
+    # Hitung jarak (cm)
     distance = duration * 17150
-
     return round(distance, 2)
 
 
@@ -59,15 +64,20 @@ def read_distance(trig_pin, echo_pin):
 # ------------------------------
 try:
     while True:
-        results = []
-        for index, s in enumerate(sensors):
-            d = read_distance(s["trig"], s["echo"])
-            results.append(d)
+        print("=" * 40)
+        for i, s in enumerate(sensors):
+            distance = read_distance(s["trig"], s["echo"])
 
-        print(f"S1: {results[1]} cm | S2: {results[0]} cm | S3: {results[2]} cm")
+            if distance == -1:
+                print(f"Sensor {i+1}: ERROR / Timeout")
+            else:
+                print(f"Sensor {i+1}: {distance} cm")
 
-        time.sleep(0.5)
+            time.sleep(0.07)  # delay antar sensor agar tidak gangguan
+
+        print("=" * 40)
+        time.sleep(0.5)  # delay antar pembacaan
 
 except KeyboardInterrupt:
-    print("Program stopped.")
+    print("Program dihentikan.")
     GPIO.cleanup()
