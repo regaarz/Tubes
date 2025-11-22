@@ -1,0 +1,73 @@
+import RPi.GPIO as GPIO
+import time
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+
+# ------------------------------
+#  Sensor Pin Configuration
+# ------------------------------
+sensors = [
+    {"trig": 23, "echo": 24},  # Sensor 1
+    {"trig": 17, "echo": 27},  # Sensor 2
+    {"trig": 5,  "echo": 6},   # Sensor 3
+]
+
+# Setup pins
+for s in sensors:
+    GPIO.setup(s["trig"], GPIO.OUT)
+    GPIO.setup(s["echo"], GPIO.IN)
+    GPIO.output(s["trig"], False)
+
+time.sleep(1)
+
+
+# ------------------------------
+#  Function to read distance
+# ------------------------------
+def read_distance(trig_pin, echo_pin):
+    # Kirim trigger
+    GPIO.output(trig_pin, True)
+    time.sleep(0.00001)  # 10 microseconds
+    GPIO.output(trig_pin, False)
+
+    # Tunggu echo start
+    start_time = time.time()
+    timeout = start_time + 0.02  # 20 ms timeout
+
+    while GPIO.input(echo_pin) == 0 and time.time() < timeout:
+        start_time = time.time()
+
+    # Tunggu echo end
+    end_time = time.time()
+    timeout = end_time + 0.02
+
+    while GPIO.input(echo_pin) == 1 and time.time() < timeout:
+        end_time = time.time()
+
+    # Durasi gelombang
+    duration = end_time - start_time
+
+    # Hitung jarak (kecepatan suara: 34300 cm/s)
+    distance = duration * 17150
+
+    return round(distance, 2)
+
+
+# ------------------------------
+#  Main Loop
+# ------------------------------
+try:
+    while True:
+        results = []
+        for index, s in enumerate(sensors):
+            d = read_distance(s["trig"], s["echo"])
+            results.append(d)
+
+        print(f"S1: {results[1]} cm | S2: {results[0]} cm | S3: {results[2]} cm")
+
+        time.sleep(0.5)
+
+except KeyboardInterrupt:
+    print("Program stopped.")
+    GPIO.cleanup()
